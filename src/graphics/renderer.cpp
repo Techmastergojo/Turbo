@@ -117,7 +117,7 @@ namespace Turbo {
     void Direct3DRenderer::EndFrame() {
 #ifdef _WIN32
         if (!m_initialized || !m_swapChain) return;
-        m_swapChain->Present(m_vsync ? 1 : 0, 0);
+        // DXGI Present disabled when using zero-flicker double-buffered GDI surface
 #endif
     }
 

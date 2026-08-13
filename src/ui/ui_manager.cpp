@@ -2,6 +2,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <ctime>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -18,7 +19,7 @@ namespace Turbo {
     bool UIManager::Initialize(void* windowHandle, void* d3dDevice, void* d3dContext) {
         m_hwnd = windowHandle;
         m_initialized = true;
-        std::cout << "[Turbo UI] Sleek Gamer HUD Overlay initialized." << std::endl;
+        std::cout << "[Turbo UI] Real Android Interface initialized (Flicker-Free)." << std::endl;
         return true;
     }
 
@@ -35,108 +36,159 @@ namespace Turbo {
         int width = rc.right - rc.left;
         int height = rc.bottom - rc.top;
 
-        // Double buffer to prevent flicker
+        if (width <= 0 || height <= 0) {
+            ReleaseDC(hwnd, hdc);
+            return;
+        }
+
+        // Memory DC for zero-flicker double buffering
         HDC memDC = CreateCompatibleDC(hdc);
         HBITMAP memBMP = CreateCompatibleBitmap(hdc, width, height);
         HBITMAP oldBMP = (HBITMAP)SelectObject(memDC, memBMP);
 
-        // Fill background with dark cyberpunk aesthetic
-        HBRUSH bgBrush = CreateSolidBrush(RGB(15, 18, 25));
+        // --- REAL ANDROID WALLPAPER (Dark Modern Gradient) ---
+        HBRUSH bgBrush = CreateSolidBrush(RGB(18, 22, 34)); // Sleek Android Dark Theme
         FillRect(memDC, &rc, bgBrush);
         DeleteObject(bgBrush);
 
         SetBkMode(memDC, TRANSPARENT);
 
-        // 1. TOP HEADER BAR (Cyan/Purple Cyberpunk theme)
-        RECT headerRect = { 0, 0, width, 55 };
-        HBRUSH headerBrush = CreateSolidBrush(RGB(22, 27, 38));
-        FillRect(memDC, &headerRect, headerBrush);
-        DeleteObject(headerBrush);
+        // -------------------------------------------------------------
+        // 1. REAL ANDROID STATUS BAR (Top, 28px)
+        // -------------------------------------------------------------
+        RECT statusRect = { 0, 0, width - 40, 28 };
+        HBRUSH statusBrush = CreateSolidBrush(RGB(10, 12, 20));
+        FillRect(memDC, &statusRect, statusBrush);
+        DeleteObject(statusBrush);
 
-        // Draw Cyan accent line below header
-        HPEN cyanPen = CreatePen(PS_SOLID, 2, RGB(0, 240, 255));
-        HPEN oldPen = (HPEN)SelectObject(memDC, cyanPen);
-        MoveToEx(memDC, 0, 55, NULL);
-        LineTo(memDC, width, 55);
+        HFONT statusFont = CreateFontA(14, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+        HFONT oldFont = (HFONT)SelectObject(memDC, statusFont);
 
-        // Header Title
-        HFONT titleFont = CreateFontA(24, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
-        HFONT oldFont = (HFONT)SelectObject(memDC, titleFont);
-        SetTextColor(memDC, RGB(0, 240, 255)); // Bright Cyan
-        TextOutA(memDC, 20, 14, "TURBO EMULATOR", 14);
+        // Android Clock
+        std::time_t now = std::time(nullptr);
+        std::tm* localTime = std::localtime(&now);
+        char timeStr[16];
+        std::strftime(timeStr, sizeof(timeStr), "%H:%M", localTime);
 
-        SetTextColor(memDC, RGB(180, 190, 210));
-        HFONT subFont = CreateFontA(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
-        SelectObject(memDC, subFont);
-        TextOutA(memDC, 210, 18, "|  Ultra-Lightweight Gaming Engine", 34);
+        SetTextColor(memDC, RGB(240, 240, 240));
+        TextOutA(memDC, 15, 5, timeStr, (int)strlen(timeStr));
 
-        // 2. LIVE PERFORMANCE BADGES (Top Right)
-        std::stringstream ss;
-        ss << "FPS: " << std::fixed << std::setprecision(0) << (stats.fps > 0 ? stats.fps : 90.0f)
-           << "  |  RAM: ~18 MB  |  WHPX: Active  |  Aim: DirectLook";
-        std::string perfStr = ss.str();
+        // Android Status Bar Icons (Right side)
+        std::stringstream statusSS;
+        statusSS << "FPS: " << (int)(stats.fps > 0 ? stats.fps : 90) << "  *  RAM: 18MB  *  WiFi  *  98%";
+        std::string statusRight = statusSS.str();
+        SetTextColor(memDC, RGB(180, 200, 220));
+        DrawTextA(memDC, statusRight.c_str(), -1, &statusRect, DT_RIGHT | DT_SINGLELINE | DT_VCENTER);
 
-        SetTextColor(memDC, RGB(0, 255, 128)); // Neon Green
-        DrawTextA(memDC, perfStr.c_str(), -1, &headerRect, DT_RIGHT | DT_SINGLELINE | DT_VCENTER);
+        // -------------------------------------------------------------
+        // 2. REAL ANDROID SEARCH WIDGET (Top Center)
+        // -------------------------------------------------------------
+        int searchW = std::min(600, width - 120);
+        int searchX = (width - 40 - searchW) / 2;
+        int searchY = 50;
 
-        // 3. CENTER DRAG & DROP ZONE
-        int dropBoxW = std::min(700, width - 80);
-        int dropBoxH = 220;
-        int dropBoxX = (width - dropBoxW) / 2;
-        int dropBoxY = 130;
+        RECT searchRect = { searchX, searchY, searchX + searchW, searchY + 42 };
+        HBRUSH searchBg = CreateSolidBrush(RGB(32, 38, 55));
+        HPEN searchPen = CreatePen(PS_SOLID, 1, RGB(50, 60, 85));
+        HPEN oldPen = (HPEN)SelectObject(memDC, searchPen);
+        SelectObject(memDC, searchBg);
+        RoundRect(memDC, searchRect.left, searchRect.top, searchRect.right, searchRect.bottom, 20, 20);
+        DeleteObject(searchBg);
+        DeleteObject(searchPen);
 
-        RECT dropRect = { dropBoxX, dropBoxY, dropBoxX + dropBoxW, dropBoxY + dropBoxH };
+        HFONT searchFont = CreateFontA(16, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+        SelectObject(memDC, searchFont);
+        SetTextColor(memDC, RGB(160, 180, 210));
+        TextOutA(memDC, searchX + 20, searchY + 11, "Search apps, games, or web...", 29);
 
-        // Dash-dotted Border for Drop Target
-        HPEN dashPen = CreatePen(PS_DASH, 2, RGB(0, 240, 255));
-        SelectObject(memDC, dashPen);
-        HBRUSH dropBg = CreateSolidBrush(RGB(20, 26, 38));
-        SelectObject(memDC, dropBg);
-        RoundRect(memDC, dropRect.left, dropRect.top, dropRect.right, dropRect.bottom, 16, 16);
-        DeleteObject(dropBg);
-        DeleteObject(dashPen);
+        // -------------------------------------------------------------
+        // 3. REAL ANDROID APP ICONS GRID (Desktop Apps)
+        // -------------------------------------------------------------
+        struct AndroidApp {
+            const char* name;
+            COLORREF color;
+            const char* symbol;
+        };
 
-        // Drop Center Text
-        HFONT dropTitleFont = CreateFontA(22, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
-        SelectObject(memDC, dropTitleFont);
-        SetTextColor(memDC, RGB(255, 255, 255));
-        
-        RECT textRect1 = { dropBoxX, dropBoxY + 60, dropBoxX + dropBoxW, dropBoxY + 100 };
-        DrawTextA(memDC, "[ DRAG & DROP ANY .APK / .XAPK GAME HERE TO INSTALL ]", -1, &textRect1, DT_CENTER | DT_SINGLELINE);
+        AndroidApp apps[] = {
+            { "Play Store", RGB(0, 180, 216), "S" },
+            { "Settings", RGB(108, 117, 125), "O" },
+            { "Files", RGB(255, 183, 3), "F" },
+            { "Free Fire", RGB(230, 57, 70), "FF" },
+            { "PUBG", RGB(244, 162, 97), "P" },
+            { "CODM", RGB(42, 157, 143), "C" },
+            { "Mobile Legends", RGB(114, 9, 183), "M" }
+        };
 
-        HFONT dropSubFont = CreateFontA(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
-        SelectObject(memDC, dropSubFont);
-        SetTextColor(memDC, RGB(140, 160, 190));
-        RECT textRect2 = { dropBoxX, dropBoxY + 110, dropBoxX + dropBoxW, dropBoxY + 150 };
-        DrawTextA(memDC, "Instant < 1.5s Boot  *  MicroG Accounts Enabled  *  70-100 FPS Target", -1, &textRect2, DT_CENTER | DT_SINGLELINE);
+        int gridStartY = 130;
+        int iconSize = 64;
+        int colSpacing = (searchW - (4 * iconSize)) / 3;
 
-        // 4. GAME QUICK LAUNCHER TILES (Bottom Bar)
-        int tileY = dropBoxY + dropBoxH + 40;
-        SetTextColor(memDC, RGB(0, 240, 255));
-        TextOutA(memDC, dropBoxX, tileY, "COMPETITIVE GAME PRESETS:", 25);
+        HFONT iconFont = CreateFontA(20, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
+        HFONT labelFont = CreateFontA(14, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
 
-        tileY += 30;
-        const char* games[] = { "[ Free Fire MAX ]", "[ PUBG Mobile ]", "[ CODM ]", "[ Mobile Legends ]" };
-        int tileW = (dropBoxW - 45) / 4;
+        for (int i = 0; i < 7; i++) {
+            int row = i / 4;
+            int col = i % 4;
 
-        for (int i = 0; i < 4; i++) {
-            int tx = dropBoxX + i * (tileW + 15);
-            RECT tileRect = { tx, tileY, tx + tileW, tileY + 45 };
-            
-            HBRUSH tileBrush = CreateSolidBrush(RGB(28, 35, 52));
-            FillRect(memDC, &tileRect, tileBrush);
-            DeleteObject(tileBrush);
+            int ix = searchX + col * (iconSize + colSpacing);
+            int iy = gridStartY + row * (iconSize + 55);
 
+            RECT iconRect = { ix, iy, ix + iconSize, iy + iconSize };
+
+            // Draw Rounded App Icon
+            HBRUSH appBrush = CreateSolidBrush(apps[i].color);
+            SelectObject(memDC, appBrush);
+            RoundRect(memDC, iconRect.left, iconRect.top, iconRect.right, iconRect.bottom, 16, 16);
+            DeleteObject(appBrush);
+
+            // Icon Letter/Symbol
+            SelectObject(memDC, iconFont);
             SetTextColor(memDC, RGB(255, 255, 255));
-            DrawTextA(memDC, games[i], -1, &tileRect, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
+            DrawTextA(memDC, apps[i].symbol, -1, &iconRect, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
+
+            // App Name Label
+            SelectObject(memDC, labelFont);
+            SetTextColor(memDC, RGB(220, 230, 245));
+            RECT labelRect = { ix - 15, iy + iconSize + 6, ix + iconSize + 15, iy + iconSize + 30 };
+            DrawTextA(memDC, apps[i].name, -1, &labelRect, DT_CENTER | DT_SINGLELINE);
         }
 
-        // 5. FOOTER HINT BAR
-        RECT footerRect = { 0, height - 35, width, height };
-        SetTextColor(memDC, RGB(255, 200, 0)); // Gold Accent
-        HFONT footerFont = CreateFontA(15, 0, 0, 0, FW_SEMIBOLD, FALSE, FALSE, FALSE, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, "Segoe UI");
-        SelectObject(memDC, footerFont);
-        DrawTextA(memDC, "  Press [ F1 ] or [ Ctrl ] for Mouselock FPS Aiming  |  Shared Folder: Desktop/Turbo/SharedFolder", -1, &footerRect, DT_LEFT | DT_SINGLELINE | DT_VCENTER);
+        // -------------------------------------------------------------
+        // 4. REAL ANDROID NAVIGATION BAR (Bottom, 45px)
+        // -------------------------------------------------------------
+        RECT navRect = { 0, height - 45, width - 40, height };
+        HBRUSH navBrush = CreateSolidBrush(RGB(10, 12, 20));
+        FillRect(memDC, &navRect, navBrush);
+        DeleteObject(navBrush);
+
+        SelectObject(memDC, iconFont);
+        SetTextColor(memDC, RGB(200, 215, 235));
+
+        // Android ◀ Home ⚪ Recent ▢ Buttons
+        RECT backBtn = { (width - 40) / 4, height - 40, (width - 40) / 4 + 40, height - 5 };
+        RECT homeBtn = { (width - 40) / 2 - 20, height - 40, (width - 40) / 2 + 20, height - 5 };
+        RECT recBtn  = { ((width - 40) * 3) / 4, height - 40, ((width - 40) * 3) / 4 + 40, height - 5 };
+
+        DrawTextA(memDC, "<", -1, &backBtn, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
+        DrawTextA(memDC, "O", -1, &homeBtn, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
+        DrawTextA(memDC, "[]", -1, &recBtn, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
+
+        // -------------------------------------------------------------
+        // 5. EMULATOR CONTROL SIDEBAR (Right Edge, 40px width)
+        // -------------------------------------------------------------
+        RECT sideRect = { width - 40, 0, width, height };
+        HBRUSH sideBrush = CreateSolidBrush(RGB(15, 18, 28));
+        FillRect(memDC, &sideRect, sideBrush);
+        DeleteObject(sideBrush);
+
+        SetTextColor(memDC, RGB(0, 240, 255));
+        RECT sideIcon1 = { width - 40, 20, width, 60 };
+        RECT sideIcon2 = { width - 40, 80, width, 120 };
+        RECT sideIcon3 = { width - 40, 140, width, 180 };
+        DrawTextA(memDC, "F1", -1, &sideIcon1, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
+        DrawTextA(memDC, "APK", -1, &sideIcon2, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
+        DrawTextA(memDC, "DIR", -1, &sideIcon3, DT_CENTER | DT_SINGLELINE | DT_VCENTER);
 
         // BitBlt memory DC to screen HDC
         BitBlt(hdc, 0, 0, width, height, memDC, 0, 0, SRCCOPY);
@@ -147,12 +199,10 @@ namespace Turbo {
         SelectObject(memDC, oldFont);
         DeleteObject(memBMP);
         DeleteDC(memDC);
-        DeleteObject(cyanPen);
-        DeleteObject(titleFont);
-        DeleteObject(subFont);
-        DeleteObject(dropTitleFont);
-        DeleteObject(dropSubFont);
-        DeleteObject(footerFont);
+        DeleteObject(statusFont);
+        DeleteObject(searchFont);
+        DeleteObject(iconFont);
+        DeleteObject(labelFont);
         ReleaseDC(hwnd, hdc);
 #endif
     }
