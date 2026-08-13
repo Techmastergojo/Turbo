@@ -193,15 +193,6 @@ int main(int argc, char** argv) {
         uiManager.Render(stats, config);
         renderer.EndFrame();
 
-        // Check if 5 seconds passed in standalone check mode
-        auto elapsedTotal = std::chrono::duration_cast<std::chrono::seconds>(currentTime - startTime).count();
-        if (elapsedTotal >= 5) {
-            std::cout << "[Turbo Monitor] Real-time Stats -> FPS: " << std::fixed << std::setprecision(1) << stats.fps 
-                      << " | FrameTime: " << stats.frameTimeMs << "ms | Host RAM: ~18 MB | Guest Status: " 
-                      << (stats.isGuestRunning ? "RUNNING" : "STOPPED") << std::endl;
-            break;
-        }
-
         // Frame Rate Limiter targeting config.targetFPS
         float targetFrameMs = 1000.0f / static_cast<float>(config.targetFPS);
         if (stats.frameTimeMs < targetFrameMs) {
