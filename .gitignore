@@ -1,0 +1,24 @@
+# Build output
+build/
+bin/
+*.exe
+*.dll
+*.o
+*.obj
+*.snap
+
+# IDE & OS files
+.vscode/
+.idea/
+.vs/
+*.user
+Thumbs.db
+Desktop.ini
+output.txt
+run_output.txt
+log.txt
+
+# Shared Folder user contents
+SharedFolder/APKs/*
+SharedFolder/GameData_OBB/*
+SharedFolder/Screenshots/*
