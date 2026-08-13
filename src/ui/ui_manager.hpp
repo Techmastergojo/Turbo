@@ -16,6 +16,7 @@ namespace Turbo {
 
     private:
         bool m_initialized = false;
+        void* m_hwnd = nullptr;
         bool m_showSettingsWindow = false;
         bool m_showKeymapperWindow = false;
         bool m_showAboutWindow = false;
