@@ -57,11 +57,9 @@ namespace Turbo {
             return false;
         }
 
-        ID3D11Texture2D* pBackBuffer = nullptr;
-        m_swapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
-        if (pBackBuffer) {
-            m_d3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &m_renderTargetView);
-            pBackBuffer->Release();
+        m_swapChain->GetBuffer(0, IID_PPV_ARGS(&m_backBuffer));
+        if (m_backBuffer) {
+            m_d3dDevice->CreateRenderTargetView(m_backBuffer, nullptr, &m_renderTargetView);
         }
 
         // Create Dynamic Texture for Guest Android Framebuffer streaming
@@ -100,13 +98,15 @@ namespace Turbo {
                 m_renderTargetView->Release();
                 m_renderTargetView = nullptr;
             }
+            if (m_backBuffer) {
+                m_backBuffer->Release();
+                m_backBuffer = nullptr;
+            }
             m_swapChain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
 
-            ID3D11Texture2D* pBackBuffer = nullptr;
-            m_swapChain->GetBuffer(0, IID_PPV_ARGS(&pBackBuffer));
-            if (pBackBuffer) {
-                m_d3dDevice->CreateRenderTargetView(pBackBuffer, nullptr, &m_renderTargetView);
-                pBackBuffer->Release();
+            m_swapChain->GetBuffer(0, IID_PPV_ARGS(&m_backBuffer));
+            if (m_backBuffer) {
+                m_d3dDevice->CreateRenderTargetView(m_backBuffer, nullptr, &m_renderTargetView);
             }
         }
 #endif
@@ -128,6 +128,11 @@ namespace Turbo {
             }
 
             m_d3dContext->Unmap(m_guestTexture, 0);
+
+            // Blit m_guestTexture to m_backBuffer
+            if (m_backBuffer) {
+                m_d3dContext->CopyResource(m_backBuffer, m_guestTexture);
+            }
         }
 #endif
     }
@@ -160,6 +165,7 @@ namespace Turbo {
 
     void Direct3DRenderer::Shutdown() {
 #ifdef _WIN32
+        if (m_backBuffer) { m_backBuffer->Release(); m_backBuffer = nullptr; }
         if (m_guestSRV) { m_guestSRV->Release(); m_guestSRV = nullptr; }
         if (m_guestTexture) { m_guestTexture->Release(); m_guestTexture = nullptr; }
         if (m_renderTargetView) { m_renderTargetView->Release(); m_renderTargetView = nullptr; }

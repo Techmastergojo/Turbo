@@ -44,7 +44,8 @@ namespace Turbo {
         IDXGISwapChain* m_swapChain = nullptr;
         ID3D11RenderTargetView* m_renderTargetView = nullptr;
 
-        // Guest Framebuffer Dynamic Texture
+        // BackBuffer and Guest Framebuffer Dynamic Texture
+        ID3D11Texture2D* m_backBuffer = nullptr;
         ID3D11Texture2D* m_guestTexture = nullptr;
         ID3D11ShaderResourceView* m_guestSRV = nullptr;
 #endif
