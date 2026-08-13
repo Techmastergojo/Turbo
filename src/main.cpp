@@ -183,20 +183,27 @@ int main(int argc, char** argv) {
         lastTime = currentTime;
 
         frameCount++;
-        stats.frameTimeMs = frameDuration.count();
-        if (stats.frameTimeMs > 0.0f) {
-            stats.fps = 1000.0f / stats.frameTimeMs;
+        float rawMs = frameDuration.count();
+        if (rawMs > 0.001f) {
+            float rawFPS = 1000.0f / rawMs;
+            // Exponential moving average filter for smooth FPS counter
+            if (stats.fps <= 0.0f) stats.fps = rawFPS;
+            else stats.fps = stats.fps * 0.92f + rawFPS * 0.08f;
         }
+        stats.frameTimeMs = 1000.0f / (stats.fps > 0.0f ? stats.fps : 90.0f);
 
-        // Render Frame
-        renderer.BeginFrame(0.06f, 0.07f, 0.10f); // Sleek dark aesthetic
+        // Update Direct3D 11 Renderer Framebuffer
+        renderer.BeginFrame(0.06f, 0.07f, 0.10f);
+        if (guestManager.IsMemoryAllocated()) {
+            renderer.UpdateGuestFramebuffer(guestManager.GetHostVirtualBase(), renderer.GetWidth(), renderer.GetHeight());
+        }
         uiManager.Render(stats, config);
         renderer.EndFrame();
 
-        // Frame Rate Limiter targeting config.targetFPS
+        // High Precision Frame Limiter
         float targetFrameMs = 1000.0f / static_cast<float>(config.targetFPS);
-        if (stats.frameTimeMs < targetFrameMs) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(targetFrameMs - stats.frameTimeMs)));
+        if (rawMs < targetFrameMs) {
+            std::this_thread::sleep_for(std::chrono::microseconds(static_cast<int>((targetFrameMs - rawMs) * 1000.0f)));
         }
     }
 

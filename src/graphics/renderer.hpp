@@ -18,14 +18,17 @@ namespace Turbo {
 
         bool Initialize(void* windowHandle, uint32_t width, uint32_t height, bool vsync);
         void Resize(uint32_t width, uint32_t height);
-        void BeginFrame(float r = 0.08f, float g = 0.09f, float b = 0.12f);
+        void BeginFrame(float r = 0.07f, float g = 0.08f, float b = 0.12f);
+        
+        // Update D3D11 Texture from Real Android Guest Framebuffer
+        void UpdateGuestFramebuffer(const void* guestPixelBuffer, uint32_t width, uint32_t height);
+        
         void EndFrame();
         void Shutdown();
 
-        // Getters for ImGui and OpenGL/ANGLE bridge
+        // Getters
         void* GetD3DDevice() const { return m_d3dDevice; }
         void* GetD3DDeviceContext() const { return m_d3dContext; }
-        void* GetRenderTargetView() const { return m_renderTargetView; }
         uint32_t GetWidth() const { return m_width; }
         uint32_t GetHeight() const { return m_height; }
 
@@ -40,6 +43,10 @@ namespace Turbo {
         ID3D11DeviceContext* m_d3dContext = nullptr;
         IDXGISwapChain* m_swapChain = nullptr;
         ID3D11RenderTargetView* m_renderTargetView = nullptr;
+
+        // Guest Framebuffer Dynamic Texture
+        ID3D11Texture2D* m_guestTexture = nullptr;
+        ID3D11ShaderResourceView* m_guestSRV = nullptr;
 #endif
     };
 

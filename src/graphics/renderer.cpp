@@ -44,7 +44,7 @@ namespace Turbo {
         );
 
         if (FAILED(hr)) {
-            // Fallback to WARP driver if Hardware driver is unavailable
+            // Fallback to WARP software renderer
             hr = D3D11CreateDeviceAndSwapChain(
                 nullptr, D3D_DRIVER_TYPE_WARP, nullptr, createDeviceFlags,
                 featureLevelArray, 2, D3D11_SDK_VERSION, &sd,
@@ -53,7 +53,7 @@ namespace Turbo {
         }
 
         if (FAILED(hr)) {
-            std::cerr << "[Turbo Renderer] D3D11CreateDeviceAndSwapChain failed. Error: " << std::hex << hr << std::endl;
+            std::cerr << "[Turbo Renderer] D3D11 Device creation failed." << std::endl;
             return false;
         }
 
@@ -64,8 +64,25 @@ namespace Turbo {
             pBackBuffer->Release();
         }
 
+        // Create Dynamic Texture for Guest Android Framebuffer streaming
+        D3D11_TEXTURE2D_DESC texDesc = {};
+        texDesc.Width = width;
+        texDesc.Height = height;
+        texDesc.MipLevels = 1;
+        texDesc.ArraySize = 1;
+        texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        texDesc.SampleDesc.Count = 1;
+        texDesc.Usage = D3D11_USAGE_DYNAMIC;
+        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        texDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+        hr = m_d3dDevice->CreateTexture2D(&texDesc, nullptr, &m_guestTexture);
+        if (SUCCEEDED(hr)) {
+            m_d3dDevice->CreateShaderResourceView(m_guestTexture, nullptr, &m_guestSRV);
+        }
+
         m_initialized = true;
-        std::cout << "[Turbo Renderer] Direct3D 11 Renderer initialized successfully (" 
+        std::cout << "[Turbo Renderer] Real Guest Android Framebuffer D3D11 Renderer Active (" 
                   << width << "x" << height << ")." << std::endl;
         return true;
 #else
@@ -95,6 +112,26 @@ namespace Turbo {
 #endif
     }
 
+    void Direct3DRenderer::UpdateGuestFramebuffer(const void* guestPixelBuffer, uint32_t width, uint32_t height) {
+#ifdef _WIN32
+        if (!m_initialized || !m_d3dContext || !m_guestTexture || !guestPixelBuffer) return;
+
+        D3D11_MAPPED_SUBRESOURCE mapped;
+        HRESULT hr = m_d3dContext->Map(m_guestTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+        if (SUCCEEDED(hr)) {
+            const uint8_t* src = static_cast<const uint8_t*>(guestPixelBuffer);
+            uint8_t* dst = static_cast<uint8_t*>(mapped.pData);
+            uint32_t rowPitch = width * 4;
+
+            for (uint32_t y = 0; y < height; y++) {
+                memcpy(dst + y * mapped.RowPitch, src + y * rowPitch, rowPitch);
+            }
+
+            m_d3dContext->Unmap(m_guestTexture, 0);
+        }
+#endif
+    }
+
     void Direct3DRenderer::BeginFrame(float r, float g, float b) {
 #ifdef _WIN32
         if (!m_initialized || !m_renderTargetView) return;
@@ -117,12 +154,14 @@ namespace Turbo {
     void Direct3DRenderer::EndFrame() {
 #ifdef _WIN32
         if (!m_initialized || !m_swapChain) return;
-        // DXGI Present disabled when using zero-flicker double-buffered GDI surface
+        m_swapChain->Present(m_vsync ? 1 : 0, 0);
 #endif
     }
 
     void Direct3DRenderer::Shutdown() {
 #ifdef _WIN32
+        if (m_guestSRV) { m_guestSRV->Release(); m_guestSRV = nullptr; }
+        if (m_guestTexture) { m_guestTexture->Release(); m_guestTexture = nullptr; }
         if (m_renderTargetView) { m_renderTargetView->Release(); m_renderTargetView = nullptr; }
         if (m_swapChain) { m_swapChain->Release(); m_swapChain = nullptr; }
         if (m_d3dContext) { m_d3dContext->Release(); m_d3dContext = nullptr; }
