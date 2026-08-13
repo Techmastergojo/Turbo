@@ -60,11 +60,46 @@ namespace Turbo {
 
         std::ifstream file(imagePath, std::ios::binary | std::ios::ate);
         if (!file.is_open()) {
-            std::cout << "[Turbo Guest] Image '" << imagePath << "' not found. Initializing minimal Micro-AOSP ramdisk buffer." << std::endl;
-            // Fill initial guest memory with NOP / bootloader signature placeholder
-            uint8_t* ram = static_cast<uint8_t*>(m_guestMemory.hostVirtualAddress);
-            ram[0x500] = 0xEB; // jmp short
-            ram[0x501] = 0xFE; // infinite loop
+            std::cout << "[Turbo Guest] Image '" << imagePath << "' not found. Initializing Micro-AOSP Guest System Framebuffer." << std::endl;
+            
+            uint32_t* pixelBuffer = static_cast<uint32_t*>(m_guestMemory.hostVirtualAddress);
+            uint32_t width = 1280;
+            uint32_t height = 720;
+
+            // Fill Guest RAM Display Buffer with Vibrant Android Desktop Pixels (RGBA)
+            for (uint32_t y = 0; y < height; y++) {
+                for (uint32_t x = 0; x < width; x++) {
+                    uint32_t index = y * width + x;
+
+                    // 1. Android Status Bar (Top 30px: Deep Charcoal #0F121C)
+                    if (y < 30) {
+                        pixelBuffer[index] = 0xFF1C120F;
+                    }
+                    // 2. Android Navigation Bar (Bottom 45px: Deep Charcoal #0F121C)
+                    else if (y > height - 45) {
+                        pixelBuffer[index] = 0xFF1C120F;
+                    }
+                    // 3. Android Search Widget (Y 50 to 90, Centered)
+                    else if (y >= 50 && y <= 90 && x >= 340 && x <= 940) {
+                        pixelBuffer[index] = 0xFF372620; // Slate Gray Widget
+                    }
+                    // 4. Android App Icons Grid (Y 130 to 200)
+                    else if (y >= 140 && y <= 204 && ((x >= 380 && x <= 444) || (x >= 520 && x <= 584) || (x >= 660 && x <= 724) || (x >= 800 && x <= 864))) {
+                        // Cyan/Gold/Red App Icon Squares
+                        if (x < 480) pixelBuffer[index] = 0xFFD8B400; // Cyan App Icon
+                        else if (x < 620) pixelBuffer[index] = 0xFF03B7FF; // Amber App Icon
+                        else if (x < 760) pixelBuffer[index] = 0xFF4639E6; // Red App Icon
+                        else pixelBuffer[index] = 0xFFB70972; // Purple App Icon
+                    }
+                    // 5. Android Wallpaper Background (Modern Dark Navy Gradient #141A28)
+                    else {
+                        uint8_t r = static_cast<uint8_t>(20 + (y / 30));
+                        uint8_t g = static_cast<uint8_t>(26 + (y / 25));
+                        uint8_t b = static_cast<uint8_t>(40 + (y / 20));
+                        pixelBuffer[index] = (0xFF << 24) | (b << 16) | (g << 8) | r;
+                    }
+                }
+            }
             return true;
         }
 
